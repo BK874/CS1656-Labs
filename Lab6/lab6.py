@@ -1,6 +1,9 @@
 # Brian Knotten
 # CS1656
-# Lab 5
+# Lab 6
+
+import time
+import datetime
 
 # To get the neo4j database password from the user
 import getpass
@@ -38,11 +41,15 @@ for record in result2:
     print(record)
 
 # Query 3: Find all movies released in the 1990s
+start = time.mktime(datetime.datetime.strptime("01/01/1990", "%m/%d/%Y").timetuple()) * 1000
+end = time.mktime(datetime.datetime.strptime("12/31/1999", "%m/%d/%Y").timetuple()) * 1000
+
 result3 = transaction.run("""
 MATCH (movie:Movie)
-WHERE movie.releaseDate >= 1990 and movie.releaseDate <= 1999
+WHERE toFloat(movie.releaseDate) > {}
+AND toFloat(movie.releaseDate) < {}
 RETURN movie.title
-;""")
+;""".format(start, end))
 for record in result3:
     print("Query 3 Match: ")
     print(record)
@@ -58,9 +65,16 @@ for record in result4:
     print(record)
 
 # Query 5: Who directed Avatar
+# result5 = transaction.run("""
+# MATCH (dir:Director) -[:DIRECTED]-> (movie:Movie)
+# WHERE movie.title = "Avatar"
+# RETURN dir.name
+# ;""")
+# for record in result5:
+#     print("Query 5 match: ")
+#     print(record)
 result5 = transaction.run("""
-MATCH (dir:Director) -[:DIRECTED]-> (movie:Movie)
-WHERE movie.title = "Avatar"
+MATCH (avatar {title: 'Avatar'}) <-[:DIRECTED]- (dir)
 RETURN dir.name
 ;""")
 for record in result5:
@@ -78,6 +92,8 @@ for record in result6:
 
 # Query 7: How (many?) people are related to "Avatar"
 result7 = transaction.run("""
+MATCH (people:Person) -[relatedTo]- (:Movie {title: 'Avatar'})
+RETURN people.name, Type(relatedTo), relatedTo
 ;""")
 for record in result7:
     print("Query 7 match: ")
@@ -86,6 +102,10 @@ for record in result7:
 # Query 8: Extend Tom Hanks co-actors, to find co-co-actors who
 # haven't worked with Tom Hanks
 result8 = transaction.run("""
+MATCH (tom:Actor {name: 'Tom Hanks'}) -[:ACTS_IN]-> (movie) <-[:ACTS_IN]- (actors), (actors) -[:ACTS_IN]-> (movie2) <-[:ACTS_IN]- (coActors)
+WHERE NOT (tom) -[:ACTS_IN]-> (movie2)
+RETURN coActors.name AS Recommended, count(*) AS Strength
+ORDER BY Strength DESC
 ;""")
 for record in result8:
     print("Query 8 match: ")
@@ -93,6 +113,8 @@ for record in result8:
 
 # Query 9: Find someone to introduce Tom Hanks to Tom Cruise.
 result9 = transaction.run("""
+MATCH (tom:Actor {name: 'Tom Hanks'}) -[:ACTS_IN]-> (movie) <-[:ACTS_IN]- (actors), (actors) -[:ACTS_IN]-> (movie2) <-[:ACTS_IN]- (cruise:Actor {name: 'Tom Cruise'})
+RETURN tom, movie, actors, movie2, cruise
 ;""")
 for record in result9:
     print("Query 9 match: ")
